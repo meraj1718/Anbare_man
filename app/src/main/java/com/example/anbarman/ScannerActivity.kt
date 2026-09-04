@@ -25,19 +25,38 @@ class ScannerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_scanner)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 10)
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                10
+            )
         } else {
             startCamera()
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
         if (requestCode == 10) {
-            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startCamera()
-            else {
-                Toast.makeText(this, "اجازه دوربین لازم است", Toast.LENGTH_SHORT).show()
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                startCamera()
+            } else {
+                Toast.makeText(
+                    this,
+                    "اجازه دوربین لازم است",
+                    Toast.LENGTH_SHORT
+                ).show()
                 finish()
             }
         }
@@ -45,42 +64,84 @@ class ScannerActivity : AppCompatActivity() {
 
     private fun startCamera() {
         val providerFuture = ProcessCameraProvider.getInstance(this)
+
         providerFuture.addListener({
             try {
                 val provider = providerFuture.get()
+
                 val preview = Preview.Builder().build()
-                val previewView = findViewById<PreviewView>(R.id.preview)
-                preview.setSurfaceProvider(previewView.surfaceProvider)
+
+                val previewView =
+                    findViewById<PreviewView>(R.id.preview)
+
+                preview.setSurfaceProvider(
+                    previewView.surfaceProvider
+                )
 
                 val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setBackpressureStrategy(
+                        ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
+                    )
                     .build()
+
                 val scanner = BarcodeScanning.getClient()
 
                 analysis.setAnalyzer(executor) { imageProxy ->
+
                     val mediaImage = imageProxy.image
+
                     if (mediaImage == null || finished) {
                         imageProxy.close()
                         return@setAnalyzer
                     }
-                    scanner.process(InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees))
+
+                    scanner.process(
+                        InputImage.fromMediaImage(
+                            mediaImage,
+                            imageProxy.imageInfo.rotationDegrees
+                        )
+                    )
                         .addOnSuccessListener { codes ->
                             val value = codes.firstOrNull()?.rawValue
+
                             if (!value.isNullOrBlank() && !finished) {
                                 finished = true
-                                setResult(Activity.RESULT_OK, Intent().putExtra("barcode", value))
+
+                                val resultIntent = Intent()
+                                    .putExtra("barcode", value)
+
+                                setResult(
+                                    Activity.RESULT_OK,
+                                    resultIntent
+                                )
+
                                 finish()
                             }
                         }
-                        .addOnCompleteListener { imageProxy.close() }
+                        .addOnCompleteListener {
+                            imageProxy.close()
+                        }
                 }
 
                 provider.unbindAll()
-                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+
+                provider.bindToLifecycle(
+                    this,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    analysis
+                )
+
             } catch (_: Exception) {
-                Toast.makeText(this, "راه‌اندازی دوربین انجام نشد", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "راه‌اندازی دوربین انجام نشد",
+                    Toast.LENGTH_SHORT
+                ).show()
+
                 finish()
             }
+
         }, ContextCompat.getMainExecutor(this))
     }
 
