@@ -20,7 +20,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.UUID
 
-class MainActivity : AppCompatActivity {
+class MainActivity : AppCompatActivity() {
 
     private val prefs by lazy {
         getSharedPreferences("store", MODE_PRIVATE)
@@ -40,7 +40,6 @@ class MainActivity : AppCompatActivity {
     override fun onCreate(savedInstanceState: Bundle?) {
         applyTheme()
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_main)
 
         list = findViewById(R.id.list)
@@ -96,12 +95,13 @@ class MainActivity : AppCompatActivity {
         render()
     }
 
-    private fun data(): JSONArray =
-        try {
+    private fun data(): JSONArray {
+        return try {
             JSONArray(prefs.getString("items", "[]"))
         } catch (_: Exception) {
             JSONArray()
         }
+    }
 
     private fun save(items: JSONArray) {
         prefs.edit()
@@ -156,14 +156,9 @@ class MainActivity : AppCompatActivity {
             nearest = minOf(nearest, date)
 
             status = when {
-                date < now ->
-                    maxOf(status, 2)
-
-                date - now <= nearWindow ->
-                    maxOf(status, 1)
-
-                else ->
-                    status
+                date < now -> maxOf(status, 2)
+                date - now <= nearWindow -> maxOf(status, 1)
+                else -> status
             }
         }
 
@@ -214,14 +209,9 @@ class MainActivity : AppCompatActivity {
 
             val filterMatches =
                 when (filter) {
-                    "near" ->
-                        status.status == 1
-
-                    "expired" ->
-                        status.status == 2
-
-                    else ->
-                        true
+                    "near" -> status.status == 1
+                    "expired" -> status.status == 2
+                    else -> true
                 }
 
             if (matches && filterMatches) {
@@ -249,9 +239,7 @@ class MainActivity : AppCompatActivity {
                     )
 
                     textSize = 17f
-
-                    gravity =
-                        Gravity.CENTER_VERTICAL
+                    gravity = Gravity.CENTER_VERTICAL
 
                     val icon =
                         when (status.status) {
@@ -307,35 +295,30 @@ class MainActivity : AppCompatActivity {
         val items = data()
 
         val product =
-            if (index != null)
+            if (index != null) {
                 items.getJSONObject(index)
-            else
+            } else {
                 JSONObject()
+            }
 
         val box =
             LinearLayout(this).apply {
-                orientation =
-                    LinearLayout.VERTICAL
-
-                setPadding(
-                    30,
-                    0,
-                    30,
-                    0
-                )
+                orientation = LinearLayout.VERTICAL
+                setPadding(30, 0, 30, 0)
             }
 
         fun edit(
             hint: String,
             value: String = "",
             type: Int = InputType.TYPE_CLASS_TEXT
-        ) =
-            EditText(this).apply {
+        ): EditText {
+            return EditText(this).apply {
                 this.hint = hint
                 setText(value)
                 inputType = type
                 setSingleLine()
             }
+        }
 
         val name =
             edit(
@@ -413,8 +396,7 @@ class MainActivity : AppCompatActivity {
 
         val batchesContainer =
             LinearLayout(this).apply {
-                orientation =
-                    LinearLayout.VERTICAL
+                orientation = LinearLayout.VERTICAL
             }
 
         box.addView(batchesContainer)
@@ -433,8 +415,7 @@ class MainActivity : AppCompatActivity {
 
                 TextView(this).apply {
 
-                    text =
-                        "هنوز سری‌ای اضافه نشده"
+                    text = "هنوز سری‌ای اضافه نشده"
 
                     setPadding(
                         0,
@@ -485,8 +466,7 @@ class MainActivity : AppCompatActivity {
 
         Button(this).apply {
 
-            text =
-                "＋ افزودن سری / بار جدید"
+            text = "＋ افزودن سری / بار جدید"
 
             setOnClickListener {
                 showBatchDialog(
@@ -525,13 +505,10 @@ class MainActivity : AppCompatActivity {
                 DialogInterface.OnClickListener { _, _ ->
 
                     items.remove(index)
-
                     save(items)
-
                     cancelProductAlarms(product)
 
                     dialog.dismiss()
-
                     render()
                 }
             )
@@ -592,11 +569,9 @@ class MainActivity : AppCompatActivity {
                 }
 
                 save(items)
-
                 rescheduleAll(product)
 
                 dialog.dismiss()
-
                 render()
             }
         }
@@ -617,10 +592,11 @@ class MainActivity : AppCompatActivity {
                 }
 
         val old =
-            if (index != null)
+            if (index != null) {
                 batches.getJSONObject(index)
-            else
+            } else {
                 JSONObject()
+            }
 
         val box =
             LinearLayout(this).apply {
@@ -645,10 +621,11 @@ class MainActivity : AppCompatActivity {
                     InputType.TYPE_CLASS_NUMBER
 
                 setText(
-                    if (old.has("qty"))
+                    if (old.has("qty")) {
                         old.optInt("qty").toString()
-                    else
+                    } else {
                         ""
+                    }
                 )
             }
 
@@ -665,10 +642,11 @@ class MainActivity : AppCompatActivity {
 
                     hint =
                         title +
-                            if (required)
+                            if (required) {
                                 " *"
-                            else
+                            } else {
                                 ""
+                            }
 
                     isFocusable = false
 
@@ -812,4 +790,322 @@ class MainActivity : AppCompatActivity {
                 if (
                     production.text.isNotBlank() &&
                     parseDate(
-                   
+                        production.text.toString()
+                    ) == null
+                ) {
+
+                    production.error =
+                        "تاریخ نامعتبر"
+
+                    return@setOnClickListener
+                }
+
+                val days =
+                    alarm.text.toString()
+                        .toIntOrNull()
+                        ?.coerceAtLeast(0)
+                        ?: 7
+
+                val batch =
+                    JSONObject()
+                        .put(
+                            "id",
+                            old.optString(
+                                "id",
+                                UUID.randomUUID().toString()
+                            )
+                        )
+                        .put(
+                            "qty",
+                            q
+                        )
+                        .put(
+                            "production",
+                            production.text.toString()
+                        )
+                        .put(
+                            "expiry",
+                            exp
+                        )
+                        .put(
+                            "alarm",
+                            days
+                        )
+
+                if (index == null) {
+                    batches.put(batch)
+                } else {
+                    batches.put(
+                        index,
+                        batch
+                    )
+                }
+
+                product.put(
+                    "batches",
+                    batches
+                )
+
+                refresh()
+
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun parseDate(
+        value: String
+    ): Long? {
+
+        return try {
+            dateFormat.parse(value)?.time
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun alarmManager(): AlarmManager {
+        return getSystemService(
+            ALARM_SERVICE
+        ) as AlarmManager
+    }
+
+    private fun requestCode(
+        product: JSONObject,
+        batch: JSONObject
+    ): Int {
+
+        return (
+            product.optString("barcode") +
+                "|" +
+                product.optString("name") +
+                "|" +
+                batch.optString(
+                    "id",
+                    batch.optString("expiry")
+                )
+            ).hashCode()
+    }
+
+    private fun scheduleDate(
+        product: JSONObject,
+        batch: JSONObject
+    ) {
+
+        val time =
+            parseDate(
+                batch.optString("expiry")
+            ) ?: return
+
+        val days =
+            batch.optInt(
+                "alarm",
+                7
+            ).coerceAtLeast(0)
+
+        val trigger =
+            time -
+                days * 86_400_000L
+
+        if (
+            trigger <=
+            System.currentTimeMillis()
+        ) {
+            return
+        }
+
+        val intent =
+            Intent(
+                this,
+                ExpiryReceiver::class.java
+            ).apply {
+
+                putExtra(
+                    "name",
+                    product.optString(
+                        "name",
+                        "کالا"
+                    )
+                )
+
+                putExtra(
+                    "date",
+                    batch.optString(
+                        "expiry"
+                    )
+                )
+
+                putExtra(
+                    "days",
+                    days
+                )
+            }
+
+        val pending =
+            PendingIntent.getBroadcast(
+                this,
+                requestCode(
+                    product,
+                    batch
+                ),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or
+                    PendingIntent.FLAG_IMMUTABLE
+            )
+
+        alarmManager().set(
+            AlarmManager.RTC_WAKEUP,
+            trigger,
+            pending
+        )
+    }
+
+    private fun rescheduleAll(
+        product: JSONObject
+    ) {
+
+        cancelProductAlarms(product)
+
+        val batches =
+            product.optJSONArray("batches")
+                ?: return
+
+        for (i in 0 until batches.length()) {
+
+            scheduleDate(
+                product,
+                batches.getJSONObject(i)
+            )
+        }
+    }
+
+    private fun cancelProductAlarms(
+        product: JSONObject
+    ) {
+
+        val batches =
+            product.optJSONArray("batches")
+                ?: return
+
+        for (i in 0 until batches.length()) {
+
+            val batch =
+                batches.getJSONObject(i)
+
+            val intent =
+                Intent(
+                    this,
+                    ExpiryReceiver::class.java
+                )
+
+            val pending =
+                PendingIntent.getBroadcast(
+                    this,
+                    requestCode(
+                        product,
+                        batch
+                    ),
+                    intent,
+                    PendingIntent.FLAG_NO_CREATE or
+                        PendingIntent.FLAG_IMMUTABLE
+                )
+
+            if (pending != null) {
+                alarmManager().cancel(pending)
+            }
+        }
+    }
+
+    private fun showSettings() {
+
+        val options =
+            arrayOf(
+                "سیستم",
+                "سفید",
+                "مشکی"
+            )
+
+        val current =
+            prefs.getString(
+                "theme",
+                "سیستم"
+            ) ?: "سیستم"
+
+        AlertDialog.Builder(this)
+            .setTitle("تم برنامه")
+            .setSingleChoiceItems(
+                options,
+                options.indexOf(current)
+                    .coerceAtLeast(0)
+            ) { dialog, which ->
+
+                prefs.edit()
+                    .putString(
+                        "theme",
+                        options[which]
+                    )
+                    .apply()
+
+                dialog.dismiss()
+
+                applyTheme()
+
+                recreate()
+            }
+            .show()
+    }
+
+    private fun applyTheme() {
+
+        when (
+            prefs.getString(
+                "theme",
+                "سیستم"
+            )
+        ) {
+
+            "مشکی" ->
+                AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_YES
+                )
+
+            "سفید" ->
+                AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_NO
+                )
+
+            else ->
+                AppCompatDelegate.setDefaultNightMode(
+                    AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                )
+        }
+    }
+
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+
+        super.onActivityResult(
+            requestCode,
+            resultCode,
+            data
+        )
+
+        if (
+            requestCode == 44 &&
+            resultCode == RESULT_OK
+        ) {
+
+            data?.getStringExtra(
+                "barcode"
+            )?.let {
+
+                pendingBarcode?.setText(it)
+            }
+        }
+    }
+}
